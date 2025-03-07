@@ -10,8 +10,9 @@ import (
 	"net"
 )
 
+// Run a service. It stores files in memory and gives them to the agent.
 func main() {
-	port := "778"
+	port := "50001"
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		panic(err)

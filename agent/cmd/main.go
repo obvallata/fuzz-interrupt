@@ -42,12 +42,13 @@ func downloadAndSaveFile(client distributorpb.DistributorServiceClient) error {
 	return nil
 }
 
+// Run a simple agent. It sends a request for a file to the service and in case of success creates the file with the content inside.
+// It can be run with the "no-cron" arg to pull service only in case of receiving SIGINFO signal.
 func main() {
-	// as mvp interface to send pid to caller in fuzzing
 	savePID()
 	noCron := len(os.Args) > 1 && os.Args[1] == "no-cron"
 
-	conn, err := grpc.Dial("localhost:778", grpc.WithInsecure())
+	conn, err := grpc.Dial("127.0.0.1:50001", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("Failed to connect to server: %v", err)
 	}
@@ -64,6 +65,7 @@ func main() {
 	select {}
 }
 
+// Agent writes its PID to the file (outside program should know it to send signals).
 func savePID() {
 	file, err := os.Create("/Users/ddr/fuzz-interrupt/agent/src/pid")
 	if err != nil {
