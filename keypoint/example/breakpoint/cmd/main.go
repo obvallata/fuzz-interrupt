@@ -7,10 +7,6 @@ import (
 	"log"
 )
 
-// Ставим bp и читаем значения переменных.
-// 1. Запуск ломаемой программы
-// 2. dlv attach --log --continue --headless --accept-multiclient --api-version 2 --listen 0.0.0.0:50080 <agent process pid>
-// 3. Запуск этого main
 func main() {
 	client := getClient()
 	defer client.Disconnect(true)
@@ -25,7 +21,7 @@ func main() {
 		log.Fatalf("Error eval variable: %v", err)
 	}
 
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 8; i++ {
 		command, err := getStr(client, "command")
 		if err != nil {
 			log.Fatalf("Error get string: %v", err)
@@ -36,7 +32,7 @@ func main() {
 			log.Fatalf("Error get string: %v", err)
 		}
 
-		fmt.Println(keypointName, command)
+		fmt.Printf("[%s] %s\n", keypointName, command)
 
 		if err != continueToBreakpoint(client) {
 			log.Fatalf("Error eval variable: %v", err)
@@ -60,7 +56,7 @@ func setBreakpoint(client *rpc2.RPCClient) (*api.Breakpoint, error) {
 	// Set breakpoint
 	bp := &api.Breakpoint{
 		File:       "/Users/ddr/fuzz-interrupt/keypoint/injection/breakpoint.go",
-		Line:       6,
+		Line:       3,
 		Tracepoint: true,
 	}
 
