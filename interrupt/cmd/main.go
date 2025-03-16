@@ -2,22 +2,14 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+
 	"github.com/go-delve/delve/service/api"
 	"github.com/go-delve/delve/service/rpc2"
 	"github.com/kr/pretty"
-	"log"
-	"os"
 )
 
-// execute agent with go build main_test.go && ./main
-// dlv attach --log --continue --headless --accept-multiclient --api-version 2 --listen 0.0.0.0:50080 <agent process pid>
-
-// Что происходит?
-// Мы ставим точку останову на строке с созданием файла, стопаем там агента, меняем права. У агента возникают проблемы.
-// Проблемы продолжаются до того момента, как мы не вернем прошлые права.
-
-// fun fact: продолжение работы программы после остановки происходит не при client.Continue(), а каждый
-// раз при чтении из канала, который вернул client.Continue().
 func main() {
 	serverAddr := "localhost:50080"
 	client := rpc2.NewClient(serverAddr)

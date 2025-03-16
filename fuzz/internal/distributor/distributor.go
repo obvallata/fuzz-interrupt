@@ -2,6 +2,7 @@ package distributor
 
 import (
 	"context"
+
 	"diploma/fuzz/internal/distributor/mock"
 	"diploma/fuzz/internal/testreporter"
 	distributorpb "diploma/gen/distributor"

@@ -2,16 +2,17 @@ package main
 
 import (
 	"context"
-	"diploma/fuzz/internal/distributor"
-	"diploma/fuzz/internal/fuzz"
-	distributerpb "diploma/gen/distributor"
 	"fmt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"diploma/fuzz/internal/distributor"
+	"diploma/fuzz/internal/fuzz"
+	distributerpb "diploma/gen/distributor"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 // 1. Поднимаем фейковый сервис.

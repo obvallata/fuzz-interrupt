@@ -8,6 +8,10 @@ import (
 	"syscall"
 )
 
+const (
+	magicFileWithProcessPID = "/Users/ddr/fuzz-interrupt/agent/src/pid"
+)
+
 type SignalCaller struct {
 }
 
@@ -35,7 +39,7 @@ func (c *SignalCaller) Call() error {
 }
 
 func (c *SignalCaller) getPID() (int, error) {
-	pidByte, err := os.ReadFile("/Users/ddr/fuzz-interrupt/agent/src/pid")
+	pidByte, err := os.ReadFile(magicFileWithProcessPID)
 	if err != nil {
 		return -1, fmt.Errorf("failed to read file: %w", err)
 	}
