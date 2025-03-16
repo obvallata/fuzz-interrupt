@@ -4,6 +4,9 @@ import (
 	"context"
 	"diploma/keypoint"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -11,13 +14,29 @@ import (
 func main() {
 	sum := func(a, b int) (int, error) { return a + b, nil }
 
-	for {
-		if result, err := keypoint.WithInject(context.Background(), "sum", sum)(10, 5); err != nil {
-			fmt.Printf("Error: %s\n", err.Error())
-		} else {
-			fmt.Printf("Success: %d\n", result)
-		}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-		time.Sleep(3 * time.Second)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		<-sigChan
+		cancel()
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Println("Finished.")
+			return
+		default:
+			if result, err := keypoint.WithInject(context.Background(), "sum", sum)(10, 5); err != nil {
+				fmt.Printf("Error: %s\n", err.Error())
+			} else {
+				fmt.Printf("Success: %d\n", result)
+			}
+
+			time.Sleep(3 * time.Second)
+		}
 	}
 }
