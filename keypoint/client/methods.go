@@ -1,22 +1,39 @@
 package client
 
 import (
-	"diploma/keypoint/injection"
 	"fmt"
+
+	"diploma/keypoint/injection"
+	"diploma/keypoint/schema"
 	"github.com/monaco-io/request"
 )
 
-func (c *client) Enable(keyPointName string, config injection.Config) error {
+func (c *client) EnableMonitor(req schema.EnableMonitorRequest) error {
 	return c.send(&request.Client{
-		URL:    c.url(keyPointName),
+		URL:    fmt.Sprintf("%s/monitor/enable", c.config.URL),
+		Method: "POST",
+		JSON:   req,
+	})
+}
+
+func (c *client) DisableMonitor() error {
+	return c.send(&request.Client{
+		URL:    fmt.Sprintf("%s/monitor/disable", c.config.URL),
+		Method: "POST",
+	})
+}
+
+func (c *client) EnableInjection(keyPointName string, config injection.Config) error {
+	return c.send(&request.Client{
+		URL:    c.injectionURL(keyPointName),
 		Method: "PUT",
 		JSON:   config,
 	})
 }
 
-func (c *client) Disable(keyPointName string) error {
+func (c *client) DisableInjection(keyPointName string) error {
 	return c.send(&request.Client{
-		URL:    c.url(keyPointName),
+		URL:    c.injectionURL(keyPointName),
 		Method: "DELETE",
 	})
 }
@@ -29,6 +46,6 @@ func (c *client) send(httpClient *request.Client) error {
 	return nil
 }
 
-func (c *client) url(keyPointName string) string {
-	return fmt.Sprintf("%s/%s", c.config.URL, keyPointName)
+func (c *client) injectionURL(keyPointName string) string {
+	return fmt.Sprintf("%s/injection/%s", c.config.URL, keyPointName)
 }

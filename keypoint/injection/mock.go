@@ -1,12 +1,13 @@
 package injection
 
 import (
-	"github.com/mitchellh/mapstructure"
 	"reflect"
+
+	"github.com/mitchellh/mapstructure"
 )
 
 type MockInjectionConfig struct {
-	Outs []any `json:"outs"`
+	Outs []any `json:"outs" yaml:"outs"`
 }
 
 // Mock supports only serializable types

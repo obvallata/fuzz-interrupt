@@ -1,68 +1,85 @@
 package keypoint
 
 import (
-	"diploma/keypoint/injection"
 	"encoding/json"
+	"io/ioutil"
 	"net"
 	"net/http"
-)
 
-import (
-	"io/ioutil"
+	"diploma/keypoint/injection"
+	"diploma/keypoint/interaction"
+	"diploma/keypoint/schema"
+	"diploma/keypoint/utils/ptr"
 )
 
 func serve(host string) error {
+	http.HandleFunc("PUT /injection/{name}", enableInjection)
+	http.HandleFunc("DELETE /injection/{name}", disableInjection)
+	http.HandleFunc("POST /monitor/enable", enableMonitor)
+	http.HandleFunc("POST /monitor/disable", disableMonitor)
+
 	ln, err := net.Listen("tcp", host)
 	if err != nil {
 		return err
 	}
-	go http.Serve(ln, &HttpHandler{})
+
+	go http.Serve(ln, nil)
+
 	return nil
 }
 
-// HttpHandler is used to handle keypoint Update/Disable requests
-type HttpHandler struct{}
+func enableInjection(w http.ResponseWriter, r *http.Request) {
+	injectionName := r.PathValue("name")
 
-func (*HttpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Path
-	if len(key) == 0 || key[0] != '/' {
-		http.Error(w, "malformed request URI", http.StatusBadRequest)
+	v, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "failed ReadAll in PUT", http.StatusBadRequest)
 		return
 	}
-	key = key[1:]
 
-	switch {
-	// update keypoint
-	case r.Method == "PUT":
-		v, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "failed ReadAll in PUT", http.StatusBadRequest)
-			return
-		}
-
-		// TODO: validate
-		var config injection.Config
-		if err := json.Unmarshal(v, &config); err != nil {
-			http.Error(w, "failed Unmarshal in PUT", http.StatusBadRequest)
-			return
-		}
-
-		if err := keyPointStorage.UpdateInjectionConfig(key, config); err != nil {
-			http.Error(w, "failed to update keypoint "+string(key), http.StatusBadRequest)
-			return
-		}
-
-	// disable keypoint
-	case r.Method == "DELETE":
-		if err := keyPointStorage.Disable(key); err != nil {
-			http.Error(w, "failed to disable keypoint "+err.Error(), http.StatusBadRequest)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-
-	default:
-		w.Header().Add("Allow", "DELETE")
-		w.Header().Set("Allow", "PUT")
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	// TODO: validate
+	var config injection.Config
+	if err := json.Unmarshal(v, &config); err != nil {
+		http.Error(w, "failed Unmarshal in PUT", http.StatusBadRequest)
+		return
 	}
+
+	if err := keyPointStorage.UpdateInjectionConfig(injectionName, config); err != nil {
+		http.Error(w, "failed to update keypoint "+string(injectionName), http.StatusBadRequest)
+	}
+}
+
+func disableInjection(w http.ResponseWriter, r *http.Request) {
+	injectionName := r.PathValue("name")
+
+	if err := keyPointStorage.Disable(injectionName); err != nil {
+		http.Error(w, "failed to disable keypoint "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func enableMonitor(w http.ResponseWriter, r *http.Request) {
+	v, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "failed ReadAll in POST", http.StatusBadRequest)
+		return
+	}
+
+	// TODO: validate
+	var request schema.EnableMonitorRequest
+	if err := json.Unmarshal(v, &request); err != nil {
+		http.Error(w, "failed Unmarshal in POST", http.StatusBadRequest)
+		return
+	}
+
+	if request.NotifierURL != nil {
+		notifier = interaction.NewNotifierClient(interaction.NotifierConfig{URL: ptr.From(request.NotifierURL)})
+	}
+	enabled.Store(true)
+}
+
+func disableMonitor(w http.ResponseWriter, r *http.Request) {
+	enabled.Store(false)
+	notifier = nil
 }

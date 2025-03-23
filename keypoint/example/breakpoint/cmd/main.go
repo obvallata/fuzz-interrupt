@@ -2,41 +2,65 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+
+	"diploma/keypoint/client"
+	"diploma/keypoint/injection"
+	"diploma/keypoint/schema"
 	"github.com/go-delve/delve/service/api"
 	"github.com/go-delve/delve/service/rpc2"
-	"log"
 )
 
 func main() {
-	client := getClient()
-	defer client.Disconnect(true)
+	// Enable keypoint monitor
+	keyPointClient := client.NewKeyPointClient(client.Config{URL: "http://127.0.0.1:1234"})
+	if err := keyPointClient.EnableMonitor(schema.EnableMonitorRequest{}); err != nil {
+		log.Fatal(err)
+	}
+	defer keyPointClient.DisableMonitor()
 
-	bp, err := setBreakpoint(client)
+	if err := keyPointClient.EnableInjection("open", injection.Config{
+		Type:       injection.TypeBreakpoint,
+		Breakpoint: &injection.BreakpointInjectionConfig{Command: injection.BreakpointManualInterruptType},
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	// Set dlv breakpoint
+	dlvclient := getClient()
+	defer dlvclient.Disconnect(true)
+
+	bp, err := setBreakpoint(dlvclient)
 	if err != nil {
 		log.Fatalf("Error creating breakpoint: %v", err)
 	}
-	defer client.ClearBreakpoint(bp.ID)
+	defer dlvclient.ClearBreakpoint(bp.ID)
 
-	if err != continueToBreakpoint(client) {
+	// Run monitor cycle
+	if err != continueToBreakpoint(dlvclient) {
 		log.Fatalf("Error eval variable: %v", err)
 	}
 
-	for i := 0; i < 8; i++ {
-		command, err := getStr(client, "command")
-		if err != nil {
-			log.Fatalf("Error get string: %v", err)
-		}
+	command, err := getStr(dlvclient, "command")
+	if err != nil {
+		log.Fatalf("Error get string: %v", err)
+	}
 
-		keypointName, err := getStr(client, "keypointName")
-		if err != nil {
-			log.Fatalf("Error get string: %v", err)
-		}
+	keypointName, err := getStr(dlvclient, "injectionName")
+	if err != nil {
+		log.Fatalf("Error get string: %v", err)
+	}
 
-		fmt.Printf("[%s] %s\n", keypointName, command)
+	fmt.Printf("[%s] %s\n", keypointName, command)
 
-		if err != continueToBreakpoint(client) {
-			log.Fatalf("Error eval variable: %v", err)
-		}
+	if err := os.Chmod("/Users/ddr/fuzz-interrupt/keypoint/example/breakpoint/important_file.txt", 0000); err != nil {
+		log.Fatal(err)
+	}
+	defer os.Chmod("/Users/ddr/fuzz-interrupt/keypoint/example/breakpoint/important_file.txt", 0777)
+
+	if err != continueToBreakpoint(dlvclient) {
+		log.Fatalf("Error eval variable: %v", err)
 	}
 }
 

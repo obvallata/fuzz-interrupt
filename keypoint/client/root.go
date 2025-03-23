@@ -2,11 +2,15 @@ package client
 
 import (
 	"diploma/keypoint/injection"
+	"diploma/keypoint/schema"
 )
 
 type KeyPointClient interface {
-	Enable(keyPointName string, config injection.Config) error
-	Disable(keyPointName string) error
+	EnableMonitor(request schema.EnableMonitorRequest) error
+	DisableMonitor() error
+
+	EnableInjection(keyPointName string, config injection.Config) error
+	DisableInjection(keyPointName string) error
 }
 
 var _ KeyPointClient = (*client)(nil)
@@ -16,7 +20,7 @@ type client struct {
 }
 
 type Config struct {
-	URL string
+	URL string `yaml:"url"`
 }
 
 func NewKeyPointClient(config Config) *client {
