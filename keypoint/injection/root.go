@@ -1,11 +1,11 @@
 package injection
 
 type Config struct {
-	Type Type `json:"type"`
+	Type Type `json:"type" yaml:"type"`
 
-	Sleep      *SleepInjectionConfig      `json:"sleep,omitempty"`
-	Mock       *MockInjectionConfig       `json:"mock"`
-	Breakpoint *BreakpointInjectionConfig `json:"breakpoint"`
+	Sleep      *SleepInjectionConfig      `json:"sleep,omitempty" yaml:"sleep"`
+	Mock       *MockInjectionConfig       `json:"mock,omitempty" yaml:"mock"`
+	Breakpoint *BreakpointInjectionConfig `json:"breakpoint,omitempty" yaml:"breakpoint"`
 }
 
 type Type string

@@ -1,19 +1,17 @@
 package injection
 
-func dummyStatement(keypointName string, command BreakpointCommand) {} //  <---  set breakpoint here
+func dummyStatement(injectionName string, command BreakpointCommand) {} //  <---  set breakpoint here
 
-func Breakpoint(keypointName string, config BreakpointInjectionConfig) {
-	dummyStatement(keypointName, config.Command)
+func Breakpoint(injectionName string, config BreakpointInjectionConfig) {
+	dummyStatement(injectionName, config.Command)
 }
 
 type BreakpointInjectionConfig struct {
-	Command BreakpointCommand `json:"command"`
+	Command BreakpointCommand `json:"command" yaml:"command"`
 }
 
 type BreakpointCommand string
 
 const (
-	BreakpointNotifyStartType   BreakpointCommand = "notify_start"
-	BreakpointNotifySuccessType BreakpointCommand = "notify_success"
-	BreakpointNotifyErrorType   BreakpointCommand = "notify_error"
+	BreakpointManualInterruptType BreakpointCommand = "manual_interrupt"
 )

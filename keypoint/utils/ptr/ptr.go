@@ -6,3 +6,7 @@ func From[T any](v *T) T {
 	}
 	return *v
 }
+
+func T[T any](v T) *T {
+	return &v
+}
