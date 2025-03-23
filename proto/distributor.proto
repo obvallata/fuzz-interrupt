@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package agent;
+option go_package = "./gen/distributor";
+
+service DistributorService {
+  rpc DownloadFile(DownloadFileRequest) returns (DownloadFileResponse);
+}
+
+message DownloadFileRequest {
+  string agent_uuid = 1;
+}
+
+message DownloadFileResponse {
+  string path = 1;
+  string content = 2;
+}

@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package uploader;
+option go_package = "./gen/uploader";
+
+service UploaderService {
+  rpc UploadFile(UploadFileRequest) returns (UploadFileResponse);
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+  rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
+  rpc SetFileActive(SetFileActiveRequest) returns (SetFileActiveResponse);
+  rpc GetFileActive(GetFileActiveRequest) returns (GetFileActiveResponse);
+}
+
+message UploadFileRequest {
+  string name = 1;
+  string content = 2; // base64 encoded content
+}
+
+message UploadFileResponse {
+  bool success = 1;
+}
+
+message ListFilesRequest {}
+
+message ListFilesResponse {
+  repeated string filenames = 1;
+}
+
+message GetFileInfoRequest {
+  string path = 1;
+}
+
+message GetFileInfoResponse {
+  string path = 1;
+  string content = 2;
+}
+
+message SetFileActiveRequest {
+  string path = 1;
+}
+
+message SetFileActiveResponse {
+  bool success = 1;
+}
+
+message GetFileActiveRequest {}
+
+message GetFileActiveResponse {
+  string path = 1;
+}
