@@ -37,8 +37,6 @@ func downloadAndSaveFile(ctx context.Context) (err error) {
 	}
 	defer file.Close()
 
-	keypoint.State(ctx, "FileOpened")
-
 	_, err = keypoint.WithInject(ctx, "fileWrite", file.Write)(content)
 	if err != nil {
 		return err
@@ -84,6 +82,8 @@ func getFileNameWithContent(ctx context.Context) (string, []byte, error) {
 	return fileStr, contentBytes, nil
 }
 
+// go build -a -x -gcflags="all=-N -l"&& GOKEYPOINT_HTTP="127.0.0.1:1234" ./agent
+// dlv attach --continue --headless --accept-multiclient --api-version 2 --listen 0.0.0.0:50080 <PID>
 func main() {
 	log.Printf("PID: %d\n", os.Getpid())
 

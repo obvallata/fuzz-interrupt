@@ -3,6 +3,7 @@ package interaction
 import (
 	"fmt"
 
+	"diploma/chaosmachine/internal/config"
 	"github.com/go-delve/delve/service/api"
 	"github.com/go-delve/delve/service/rpc2"
 )
@@ -33,7 +34,7 @@ type DlvConfig struct {
 	Host string `yaml:"host"`
 }
 
-func NewDlvClient(config DlvConfig) DlvClient {
+func NewDlvClient(config config.InteractionDlvConfig) DlvClient {
 	return &dlvClient{rpc2.NewClient(config.Host)}
 }
 

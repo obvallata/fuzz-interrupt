@@ -2,6 +2,7 @@ package keypoint
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -65,6 +66,8 @@ func enableMonitor(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed ReadAll in POST", http.StatusBadRequest)
 		return
 	}
+
+	fmt.Println(string(v))
 
 	// TODO: validate
 	var request schema.EnableMonitorRequest

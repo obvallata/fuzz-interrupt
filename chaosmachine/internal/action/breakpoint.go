@@ -4,20 +4,14 @@ import (
 	"fmt"
 	"log"
 
+	"diploma/chaosmachine/internal/config"
 	"diploma/chaosmachine/internal/interaction"
 )
 
 type breakpointHandler struct {
 	action Action
 	dlv    interaction.DlvClient
-	config BreakpointConfig
-}
-
-type BreakpointConfig struct {
-	Breakpoints []struct {
-		FilePath string `yaml:"filePath"`
-		Line     int    `yaml:"line"`
-	} `yaml:"breakpoints"`
+	config config.BreakpointConfig
 }
 
 func (h *breakpointHandler) run() error {

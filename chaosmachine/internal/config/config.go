@@ -4,19 +4,48 @@ import (
 	"fmt"
 	"os"
 
-	"diploma/chaosmachine/internal/action"
-	"diploma/chaosmachine/internal/interaction"
-	"diploma/chaosmachine/internal/server"
+	"diploma/keypoint/client"
 	"diploma/keypoint/injection"
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	Server     server.Config           `yaml:"server"`
-	Clients    interaction.Config      `yaml:"clients"`
-	Breakpoint action.BreakpointConfig `yaml:"breakpoint"`
+	Server     ServerConfig      `yaml:"server"`
+	Clients    InteractionConfig `yaml:"clients"`
+	Breakpoint BreakpointConfig  `yaml:"breakpoint"`
 
-	Injections map[string][]injection.Config `yaml:"injections"`
+	Injections InjectionsConfig       `yaml:"injections"`
+	States     map[string]StateConfig `yaml:"states"`
+}
+
+type InjectionsConfig map[string]InjectionConfig
+
+type InjectionConfig struct {
+	Injections []injection.Config `yaml:"injections"`
+}
+
+type StateConfig struct {
+	Finish bool `yaml:"finish"`
+}
+
+type ServerConfig struct {
+	URL string `yaml:"url"`
+}
+
+type InteractionConfig struct {
+	Dlv      InteractionDlvConfig `yaml:"dlv"`
+	KeyPoint client.Config        `yaml:"keyPoint"`
+}
+
+type InteractionDlvConfig struct {
+	Host string `yaml:"host"`
+}
+
+type BreakpointConfig struct {
+	Breakpoints []struct {
+		FilePath string `yaml:"filePath"`
+		Line     int    `yaml:"line"`
+	} `yaml:"breakpoints"`
 }
 
 func GetConfig(configPath string) (Config, error) {

@@ -7,11 +7,12 @@ import (
 	"net/http"
 
 	"diploma/chaosmachine/internal/action"
+	"diploma/chaosmachine/internal/config"
 	"diploma/keypoint/schema"
 )
 
 // Serve sets up server for notifications
-func Serve(config Config, action action.Action) error {
+func Serve(config config.ServerConfig, action action.Action) error {
 	h := &handler{action: action}
 	http.HandleFunc("POST /", h.acceptNotification)
 
@@ -22,10 +23,6 @@ func Serve(config Config, action action.Action) error {
 
 	go http.Serve(ln, nil)
 	return nil
-}
-
-type Config struct {
-	URL string `yaml:"url"`
 }
 
 type handler struct {

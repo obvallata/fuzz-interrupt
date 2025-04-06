@@ -8,11 +8,19 @@ clients:
     url: 'http://127.0.0.1:1234'
 
 breakpoint:
-  - filePath: '/Users/ddr/fuzz-interrupt/keypoint/injection/breakpoint.go'
-    line: 3
+  breakpoints:
+    - filePath: '/Users/ddr/fuzz-interrupt/keypoint/injection/breakpoint.go'
+      line: 3
+
+states:
+  Finish:
+    finish: true
+  Error:
+    finish: true
 
 injections:
   getFileNameWithContent:
-    - type: sleep
-      sleep:
-        duration: 500ms
+    injections:
+      - type: sleep
+        sleep:
+          duration: 500ms

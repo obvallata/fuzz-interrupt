@@ -16,3 +16,7 @@ const (
 	TypeMock       Type = "mock"
 	TypeBreakpoint Type = "breakpoint"
 )
+
+func NewDefaultOffConfig() Config {
+	return Config{Type: TypeOff}
+}

@@ -22,8 +22,10 @@ func main() {
 	}
 	defer clients.Close()
 
-	a := action.NewAction(clients)
+	a := action.NewAction(clients, conf)
 	server.Serve(conf.Server, a)
 
-	a.BuildAutomaton()
+	if err := a.BuildAutomaton(); err != nil {
+		log.Fatalf("build automaton: %s", err.Error())
+	}
 }
