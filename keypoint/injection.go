@@ -53,7 +53,7 @@ func callWithInject[T any](
 		return outs, nil
 
 	case injection.TypeBreakpoint:
-		injection.Breakpoint(injectName, ptr.From(injectionConfig.Breakpoint))
+		injection.Breakpoint(injectName)
 
 	default: // including injection.TypeOff
 	}

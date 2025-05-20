@@ -21,8 +21,7 @@ func main() {
 	defer keyPointClient.DisableMonitor()
 
 	if err := keyPointClient.EnableInjection("open", injection.Config{
-		Type:       injection.TypeBreakpoint,
-		Breakpoint: &injection.BreakpointInjectionConfig{Command: injection.BreakpointManualInterruptType},
+		Type: injection.TypeBreakpoint,
 	}); err != nil {
 		log.Fatal(err)
 	}
@@ -42,17 +41,12 @@ func main() {
 		log.Fatalf("Error eval variable: %v", err)
 	}
 
-	command, err := getStr(dlvclient, "command")
-	if err != nil {
-		log.Fatalf("Error get string: %v", err)
-	}
-
 	keypointName, err := getStr(dlvclient, "injectionName")
 	if err != nil {
 		log.Fatalf("Error get string: %v", err)
 	}
 
-	fmt.Printf("[%s] %s\n", keypointName, command)
+	fmt.Printf("[%s] \n", keypointName)
 
 	if err := os.Chmod("/Users/ddr/fuzz-interrupt/keypoint/example/breakpoint/important_file.txt", 0000); err != nil {
 		log.Fatal(err)

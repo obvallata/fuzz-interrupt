@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"log"
+	"time"
 
 	"diploma/chaosmachine/internal/action"
 	"diploma/chaosmachine/internal/config"
@@ -25,7 +27,9 @@ func main() {
 	a := action.NewAction(clients, conf)
 	server.Serve(conf.Server, a)
 
-	if err := a.BuildAutomaton(); err != nil {
+	if err := a.BuildAutomaton(context.TODO()); err != nil {
 		log.Fatalf("build automaton: %s", err.Error())
 	}
+
+	time.Sleep(time.Second * 5)
 }

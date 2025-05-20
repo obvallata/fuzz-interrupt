@@ -62,9 +62,6 @@ func (c *dlvClient) CreateBreakpoint(filePath string, line int) (int, error) {
 		return 0, fmt.Errorf("dlv create breakpoint: %w", err)
 	}
 
-	// Continue program
-	c.RPCClient.Continue()
-
 	return bp.ID, nil
 }
 

@@ -6,7 +6,7 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-type scenario map[string]injection.Config
+type scenario map[string]config.InjectionListElement
 
 func newNextScenario(injections config.InjectionsConfig) chan scenario {
 	// TODO: rewrite on iterators
@@ -27,9 +27,13 @@ func newNextScenario(injections config.InjectionsConfig) chan scenario {
 		}
 
 		injName := injectionNames[i]
+
+		// force append off injection
 		for _, inj := range append(
-			[]injection.Config{injection.NewDefaultOffConfig()},
-			injections[injName].Injections...,
+			[]config.InjectionListElement{{
+				Config: injection.NewDefaultOffConfig(),
+			}},
+			injections[injName].InjectionsList...,
 		) {
 			sCopy[injName] = inj
 			enumerate(i+1, sCopy)

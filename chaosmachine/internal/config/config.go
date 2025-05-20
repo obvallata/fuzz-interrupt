@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"diploma/chaosmachine/internal/breakpoint"
 	"diploma/keypoint/client"
 	"diploma/keypoint/injection"
 	"gopkg.in/yaml.v3"
@@ -21,7 +22,14 @@ type Config struct {
 type InjectionsConfig map[string]InjectionConfig
 
 type InjectionConfig struct {
-	Injections []injection.Config `yaml:"injections"`
+	InjectionsList []InjectionListElement `yaml:"injectionsList"`
+}
+
+type BreakpointInjectionConfig = breakpoint.Config
+
+type InjectionListElement struct {
+	injection.Config          `yaml:",inline"`
+	BreakpointInjectionConfig `yaml:",inline"`
 }
 
 type StateConfig struct {

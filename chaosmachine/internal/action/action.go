@@ -1,9 +1,13 @@
 package action
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"maps"
 	"strings"
 
+	"diploma/chaosmachine/internal/breakpoint"
 	"diploma/chaosmachine/internal/config"
 	"diploma/chaosmachine/internal/interaction"
 	"diploma/keypoint/injection"
@@ -13,7 +17,7 @@ import (
 )
 
 type Action interface {
-	BuildAutomaton() error
+	BuildAutomaton(ctx context.Context) error
 	HandleNotification(request schema.NotifyRequest)
 	HandleBreakpoint(injectionName string)
 }
@@ -22,6 +26,14 @@ type action struct {
 	clients       interaction.Clients
 	notifications chan schema.NotifyRequest
 	config        config.Config
+
+	state state
+}
+
+type state struct {
+	data               map[string]any
+	scenario           scenario
+	breakpointRollback []breakpoint.Rollback
 }
 
 func NewAction(clients interaction.Clients, config config.Config) Action {
@@ -37,60 +49,45 @@ func (a *action) HandleNotification(request schema.NotifyRequest) {
 }
 
 func (a *action) HandleBreakpoint(injectionName string) {
-	//TODO implement me
-	panic("implement me")
+	rollback, err := breakpoint.HandleInjection(
+		a.state.scenario[injectionName].BreakpointInjectionConfig,
+		a.state.data,
+	)
+	if err != nil {
+		log.Printf("breakpoint handling: %v", err)
+	}
+
+	if rollback != nil {
+		a.state.breakpointRollback = append(a.state.breakpointRollback, rollback)
+	}
 }
 
-func (a *action) BuildAutomaton() error {
-	//bpHandler := breakpointHandler{
-	//	action: a,
-	//	dlv:    a.clients.Dlv,
-	//	config: a.config.Breakpoint,
-	//}
-	//if err := bpHandler.run(); err != nil {
-	//	return fmt.Errorf("run breakpoint handler: %w", err)
-	//}
+func (a *action) BuildAutomaton(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	bpHandler := breakpointHandler{
+		action: a,
+		dlv:    a.clients.Dlv,
+		config: a.config.Breakpoint,
+	}
+	if err := bpHandler.run(ctx); err != nil {
+		return fmt.Errorf("run breakpoint handler: %w", err)
+	}
 
 	if err := a.initKeypoints(); err != nil {
 		return fmt.Errorf("init keypoints: %w", err)
 	}
+	defer a.finalizeKeypoints()
 
 	var events fsm.Events
 	for s := range newNextScenario(a.config.Injections) {
-		if err := a.setKeypoints(s); err != nil {
-			return fmt.Errorf("set keypoints: %w", err)
+		newEvents, err := a.runScenario(s)
+		if err != nil {
+			return err
 		}
 
-		var (
-			currentState = "START"
-			currentEdge  []string
-		)
-
-		for notification := range a.notifications {
-			switch notification.Type {
-			case schema.NotifyStateType:
-				edge := strings.Join(currentEdge, "\n")
-				events = append(events, fsm.EventDesc{
-					Name: edge,
-					Src:  []string{currentState},
-					Dst:  notification.Name,
-				})
-
-				currentEdge = currentEdge[:0]
-				currentState = notification.Name
-
-			case schema.NotifyInjectionType:
-				if s[notification.Name].Type == injection.TypeOff {
-					currentEdge = append(currentEdge, notification.Name)
-				} else {
-					currentEdge = append(currentEdge, fmt.Sprintf("%s + %s", notification.Name, s[notification.Name].Type))
-				}
-			}
-
-			if a.config.States[currentState].Finish {
-				break
-			}
-		}
+		events = append(events, newEvents...)
 	}
 
 	sumFsm := fsm.NewFSM("START", events, fsm.Callbacks{})
@@ -98,10 +95,69 @@ func (a *action) BuildAutomaton() error {
 	return nil
 }
 
+func (a *action) runScenario(s scenario) (fsm.Events, error) {
+	var events fsm.Events
+
+	a.state = state{
+		data:     make(map[string]any),
+		scenario: s,
+	}
+
+	defer func() {
+		for _, rollback := range a.state.breakpointRollback {
+			if err := rollback(); err != nil {
+				log.Printf("breakpoint rollback: %v")
+			}
+		}
+	}()
+
+	if err := a.setKeypoints(s); err != nil {
+		return nil, fmt.Errorf("set keypoints: %w", err)
+	}
+
+	var (
+		currentState = "START"
+		currentEdge  []string
+	)
+
+	for notification := range a.notifications {
+		switch notification.Type {
+		case schema.NotifyStateType:
+			maps.Copy(a.state.data, notification.Data)
+
+			// flush current edge injections
+			edge := strings.Join(currentEdge, "\n")
+			events = append(events, fsm.EventDesc{
+				Name: edge,
+				Src:  []string{currentState},
+				Dst:  notification.Name,
+			})
+
+			currentEdge = currentEdge[:0]
+			currentState = notification.Name
+
+		case schema.NotifyInjectionType:
+			maps.Copy(a.state.data, notification.Data)
+
+			if s[notification.Name].Type == injection.TypeOff {
+				currentEdge = append(currentEdge, notification.Name)
+			} else {
+				currentEdge = append(currentEdge, fmt.Sprintf("%s + %s", notification.Name, s[notification.Name].Type))
+			}
+		}
+
+		if a.config.States[currentState].Finish {
+			break
+		}
+	}
+
+	return events, nil
+}
+
 func (a *action) setKeypoints(s scenario) error {
 	// TODO: batch
 	for name, conf := range s {
-		if err := a.clients.KeyPoint.EnableInjection(name, conf); err != nil {
+		if err := a.clients.KeyPoint.EnableInjection(name, conf.Config); err != nil {
 			return fmt.Errorf("enable injection: %w", err)
 		}
 	}
@@ -118,4 +174,8 @@ func (a *action) initKeypoints() error {
 	}
 
 	return nil
+}
+
+func (a *action) finalizeKeypoints() error {
+	return a.clients.KeyPoint.DisableMonitor()
 }

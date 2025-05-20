@@ -6,7 +6,7 @@ import (
 )
 
 type KeyPointClient interface {
-	EnableMonitor(request schema.EnableMonitorRequest) error
+	EnableMonitor(request schema.EnableMonitorRequest) error // switch on crazy mod and tell url to send notifications
 	DisableMonitor() error
 
 	EnableInjection(keyPointName string, config injection.Config) error

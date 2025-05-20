@@ -24,21 +24,18 @@ func downloadAndSaveFile(ctx context.Context) (err error) {
 		keypoint.State(ctx, "Finish")
 	}()
 
-	filePath, content, err := getFileNameWithContentWithTimeout(ctx)
+	filePath, content, err := getFilePathWithContentWithTimeout(ctx)
 	if err != nil {
 		return err
 	}
 
 	keypoint.State(ctx, "FileAndContentGot", keypoint.WithData(map[string]any{"filepath": filePath}))
 
-	file, err := keypoint.WithInject(ctx, "fileCreate", os.Create)(filePath)
-	if err != nil {
+	if err = createFile(ctx, filePath); err != nil {
 		return err
 	}
-	defer file.Close()
 
-	_, err = keypoint.WithInject(ctx, "fileWrite", file.Write)(content)
-	if err != nil {
+	if err = writeInFile(ctx, filePath, content); err != nil {
 		return err
 	}
 
@@ -47,7 +44,28 @@ func downloadAndSaveFile(ctx context.Context) (err error) {
 	return nil
 }
 
-func getFileNameWithContentWithTimeout(ctx context.Context) (string, []byte, error) {
+func createFile(ctx context.Context, filePath string) error {
+	file, err := keypoint.WithInject(ctx, "fileCreate", os.Create)(filePath)
+	if err != nil {
+		return err
+	}
+
+	return file.Close()
+}
+
+func writeInFile(ctx context.Context, filePath string, content []byte) error {
+	file, err := keypoint.WithInject(ctx, "fileOpen", os.OpenFile)(filePath, os.O_RDWR, 0740)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	_, err = keypoint.WithInject(ctx, "fileWrite", file.Write)(content)
+	return err
+}
+
+func getFilePathWithContentWithTimeout(ctx context.Context) (string, []byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer cancel()
 
@@ -82,7 +100,7 @@ func getFileNameWithContent(ctx context.Context) (string, []byte, error) {
 	return fileStr, contentBytes, nil
 }
 
-// go build -a -x -gcflags="all=-N -l"&& GOKEYPOINT_HTTP="127.0.0.1:1234" ./agent
+// go build -a -x -gcflags="all=-N -l" && GOKEYPOINT_HTTP="127.0.0.1:1234" ./agent
 // dlv attach --continue --headless --accept-multiclient --api-version 2 --listen 0.0.0.0:50080 <PID>
 func main() {
 	log.Printf("PID: %d\n", os.Getpid())

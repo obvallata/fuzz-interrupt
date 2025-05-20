@@ -1,6 +1,7 @@
 package action
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -14,26 +15,46 @@ type breakpointHandler struct {
 	config config.BreakpointConfig
 }
 
-func (h *breakpointHandler) run() error {
+func (h *breakpointHandler) run(ctx context.Context) error {
 	clearBreakpoints, err := h.createBreakpoints()
 	if err != nil {
 		return err
 	}
 
 	go func() {
+		defer h.dlv.Disconnect()
 		defer clearBreakpoints()
+		continueReady := make(chan any, 1)
+		continueReady <- nil
 
-		for {
-			if err != h.dlv.Continue() {
+		continueAsync := func() {
+			if err := h.dlv.Continue(); err != nil {
 				log.Printf("Error dlv continue: %s\n", err.Error())
 			}
 
-			injectionName, err := h.dlv.GetVarStr("injectionName")
-			if err != nil {
-				log.Fatalf("Error dlv get injectionName: %s\n", err.Error())
+			select {
+			case <-ctx.Done():
+				return
+			case <-continueReady:
 			}
+		}
 
-			h.action.HandleBreakpoint(injectionName)
+		for {
+			go continueAsync()
+
+			select {
+			case <-ctx.Done():
+				log.Printf("Stop breakpoint handler\n")
+				close(continueReady)
+				return
+			case continueReady <- nil:
+				injectionName, err := h.dlv.GetVarStr("injectionName")
+				if err != nil {
+					log.Printf("Error dlv get injectionName: %s\n", err.Error())
+				}
+
+				h.action.HandleBreakpoint(injectionName)
+			}
 		}
 	}()
 
