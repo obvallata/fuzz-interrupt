@@ -2,25 +2,27 @@ package keypoint
 
 import (
 	"context"
-	"diploma/keypoint/injection"
-	"diploma/keypoint/utils/ptr"
 	"reflect"
 	"time"
+
+	"diploma/keypoint/injection"
+	"diploma/keypoint/schema"
+	"diploma/keypoint/utils/ptr"
 )
 
-func WithInject[T any](ctx context.Context, keypointName string, function T) T {
-	// TODO: keypoint disabling env flag
+func WithInject[T any](ctx context.Context, injectionName string, function T) T {
+	// TODO: add keypoint disabling env flag
+	if !enabled.Load() {
+		return function
+	}
 
 	v := reflect.MakeFunc(reflect.TypeOf(function), func(in []reflect.Value) []reflect.Value {
-		notifyStart(keypointName)
-		outs, err := callWithInject(ctx, keypointName, function, in)
+		notifyInjection(ctx, injectionName)
+		outs, err := callWithInject(ctx, injectionName, function, in)
 
 		if err != nil {
-			notifyError(keypointName)
-		} else {
-			notifySuccess(keypointName)
+			// TODO: handle error
 		}
-
 		return outs
 	})
 
@@ -29,11 +31,11 @@ func WithInject[T any](ctx context.Context, keypointName string, function T) T {
 
 func callWithInject[T any](
 	ctx context.Context,
-	keypointName string,
+	injectName string,
 	function T,
 	in []reflect.Value,
 ) ([]reflect.Value, error) {
-	injectionConfig, err := keyPointStorage.GetInjectionConfig(keypointName)
+	injectionConfig, err := keyPointStorage.GetInjectionConfig(injectName)
 	if err != nil {
 		return originalCall(function, in), err
 	}
@@ -51,7 +53,7 @@ func callWithInject[T any](
 		return outs, nil
 
 	case injection.TypeBreakpoint:
-		injection.Breakpoint(keypointName, ptr.From(injectionConfig.Breakpoint))
+		injection.Breakpoint(injectName)
 
 	default: // including injection.TypeOff
 	}
@@ -59,16 +61,18 @@ func callWithInject[T any](
 	return originalCall(function, in), nil
 }
 
-func notifyStart(keypointName string) {
-	injection.Breakpoint(keypointName, injection.BreakpointInjectionConfig{Command: injection.BreakpointNotifyStartType})
-}
+func notifyInjection(ctx context.Context, injectionName string) {
+	if notifier == nil {
+		return
+	}
 
-func notifySuccess(keypointName string) {
-	injection.Breakpoint(keypointName, injection.BreakpointInjectionConfig{Command: injection.BreakpointNotifySuccessType})
-}
-
-func notifyError(keypointName string) {
-	injection.Breakpoint(keypointName, injection.BreakpointInjectionConfig{Command: injection.BreakpointNotifyErrorType})
+	err := notifier.Notify(ctx, schema.NotifyRequest{
+		Type: schema.NotifyInjectionType,
+		Name: injectionName,
+	})
+	if err != nil {
+		// TODO: handle error
+	}
 }
 
 func originalCall[T any](function T, in []reflect.Value) []reflect.Value {

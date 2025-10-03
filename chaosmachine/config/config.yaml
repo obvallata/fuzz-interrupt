@@ -1,0 +1,33 @@
+server:
+  url: '127.0.0.1:1235' # for agent (will tell him later by sending config)
+
+clients:
+  dlv:
+    host: 'localhost:50080'
+  keyPoint:
+    url: 'http://127.0.0.1:1234' # for fsm (agent endpoint)
+
+breakpoint:
+  breakpoints:
+    - filePath: '/Users/ddr/fuzz-interrupt/keypoint/injection/breakpoint.go'
+      line: 3
+
+states:
+  Finish:
+    finish: true
+  Error:
+    finish: true
+
+injections:
+#  getFileNameWithContent: # injection name
+#    injectionsList:
+#      - type: sleep
+#        sleep:
+#          duration: 500ms
+  fileOpen:
+    injectionsList:
+      - type: breakpoint
+        command: file_permission_change
+        filePermissionChangeConfig:
+          filePathDataKey: filepath
+          fileMode: 0111

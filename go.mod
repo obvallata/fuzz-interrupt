@@ -7,6 +7,7 @@ require (
 	github.com/google/gofuzz v1.2.0
 	github.com/google/uuid v1.6.0
 	github.com/kr/pretty v0.3.1
+	github.com/looplab/fsm v1.0.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/monaco-io/request v1.0.16
 	github.com/stretchr/testify v1.9.0

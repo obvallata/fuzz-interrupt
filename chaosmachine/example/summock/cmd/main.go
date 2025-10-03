@@ -1,58 +1,119 @@
 package main
 
 import (
+	"fmt"
+	"log"
+
 	"diploma/keypoint/client"
 	"diploma/keypoint/injection"
-	"fmt"
 	"github.com/go-delve/delve/service/api"
 	"github.com/go-delve/delve/service/rpc2"
-	"log"
+	fuzz "github.com/google/gofuzz"
+	"github.com/looplab/fsm"
 )
 
-func main() {
-	c := client.NewKeyPointClient(client.Config{URL: "http://127.0.0.1:1234"})
-
-	if err := c.Enable("sum", injection.Config{
-		Type: injection.TypeMock,
-		Mock: &injection.MockInjectionConfig{Outs: []any{
-			69, nil,
-		}},
-	}); err != nil {
-		log.Fatal(err)
-	}
+type srcDst struct {
+	Src string
+	Dst string
 }
 
-func main1() {
-	client := getClient()
-	defer client.Disconnect(true)
+func main() {
+	var (
+		keypointClient = client.NewKeyPointClient(client.Config{URL: "http://127.0.0.1:1234"})
+		fz             = fuzz.New()
+	)
 
-	bp, err := setBreakpoint(client)
+	dlvClient := getClient()
+	defer dlvClient.Disconnect(true)
+
+	bp, err := setBreakpoint(dlvClient)
 	if err != nil {
 		log.Fatalf("Error creating breakpoint: %v", err)
 	}
-	defer client.ClearBreakpoint(bp.ID)
+	defer dlvClient.ClearBreakpoint(bp.ID)
 
-	if err != continueToBreakpoint(client) {
-		log.Fatalf("Error eval variable: %v", err)
+	if _, err = dlvClient.ToggleBreakpoint(bp.ID); err != nil {
+		log.Fatalf("Error toggle breakpoint: %v", err)
+	}
+	dlvClient.Continue()
+
+	events := make(map[srcDst]string)
+
+	for iter := 0; iter < 1000; iter++ {
+		fmt.Println(iter)
+
+		// Mock sum
+		var result int
+		fz.Fuzz(&result)
+		if err = keypointClient.EnableInjection("sum", injection.Config{
+			Type: injection.TypeMock,
+			Mock: &injection.MockInjectionConfig{Outs: []any{result}},
+		}); err != nil {
+			log.Fatalf("Error enable keypoint: %v", err)
+		}
+
+		if err = toggleBreakpoint(dlvClient, bp); err != nil {
+			log.Fatalf("Error toggle breakpoint: %v", err)
+		}
+
+		var keypoint, command string
+		for keypoint != "start" || command != "notify_start" {
+			keypoint, command, err = doStep(dlvClient)
+			if err != nil {
+				log.Fatalf("Error do step: %v", err)
+			}
+		}
+
+		// Run flow
+		for keypoint != "finish" || command != "notify_success" {
+			nextKeypoint, nextCommand, err := doStep(dlvClient)
+			if err != nil {
+				log.Fatalf("Error do step: %v", err)
+			}
+
+			if nextKeypoint != keypoint {
+				events[srcDst{
+					Src: keypoint,
+					Dst: nextKeypoint,
+				}] = fmt.Sprintf("%d", result)
+			}
+
+			keypoint = nextKeypoint
+			command = nextCommand
+		}
+
+		if _, err = dlvClient.ToggleBreakpoint(bp.ID); err != nil {
+			log.Fatalf("Error toggle breakpoint: %v", err)
+		}
+		dlvClient.Continue()
 	}
 
-	for i := 0; i < 8; i++ {
-		command, err := getStr(client, "command")
-		if err != nil {
-			log.Fatalf("Error get string: %v", err)
-		}
+	buildFsm(events)
+}
 
-		keypointName, err := getStr(client, "keypointName")
-		if err != nil {
-			log.Fatalf("Error get string: %v", err)
-		}
-
-		fmt.Printf("[%s] %s\n", keypointName, command)
-
-		if err != continueToBreakpoint(client) {
-			log.Fatalf("Error eval variable: %v", err)
-		}
+func toggleBreakpoint(client *rpc2.RPCClient, bp *api.Breakpoint) error {
+	// Stop program
+	_, err := client.Halt()
+	if err != nil {
+		log.Fatalf("Error halting: %v", err)
 	}
+
+	_, err = client.ToggleBreakpoint(bp.ID)
+	return err
+}
+
+func buildFsm(events map[srcDst]string) {
+	var fsmEvents fsm.Events
+	for k, v := range events {
+		fsmEvents = append(fsmEvents, fsm.EventDesc{
+			Name: v,
+			Src:  []string{k.Src},
+			Dst:  k.Dst,
+		})
+	}
+
+	sumFsm := fsm.NewFSM("start", fsmEvents, fsm.Callbacks{})
+	fmt.Println(fsm.Visualize(sumFsm))
 }
 
 func getClient() *rpc2.RPCClient {
@@ -87,6 +148,28 @@ func setBreakpoint(client *rpc2.RPCClient) (*api.Breakpoint, error) {
 func continueToBreakpoint(client *rpc2.RPCClient) error {
 	out := new(rpc2.CommandOut)
 	return client.CallAPI("Command", &api.DebuggerCommand{Name: api.Continue, ReturnInfoLoadConfig: &normalLoadConfig}, &out)
+}
+
+func doStep(client *rpc2.RPCClient) (string, string, error) {
+	if err := continueToBreakpoint(client); err != nil {
+		log.Fatalf("Error eval variable: %v", err)
+	}
+
+	return getKeypointAndCommand(client)
+}
+
+func getKeypointAndCommand(client *rpc2.RPCClient) (string, string, error) {
+	keypointName, err := getStr(client, "keypointName")
+	if err != nil {
+		return "", "", err
+	}
+
+	command, err := getStr(client, "command")
+	if err != nil {
+		return "", "", err
+	}
+
+	return keypointName, command, nil
 }
 
 func getStr(client *rpc2.RPCClient, varName string) (string, error) {

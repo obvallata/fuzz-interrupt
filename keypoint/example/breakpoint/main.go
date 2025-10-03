@@ -2,19 +2,21 @@ package main
 
 import (
 	"context"
-	"diploma/keypoint"
 	"fmt"
-	"math/rand"
+	"io"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"diploma/keypoint"
 )
 
-// go build -a -x -gcflags="all=-N -l"&& ./breakpoint
+// go build -a -x -gcflags="all=-N -l"&& GOKEYPOINT_HTTP="127.0.0.1:1234" ./breakpoint
 // dlv attach --continue --headless --accept-multiclient --api-version 2 --listen 0.0.0.0:50080 <PID>
 func main() {
-	fmt.Printf("PID: %d\n", os.Getpid())
+	log.Printf("PID: %d\n", os.Getpid())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -26,32 +28,35 @@ func main() {
 		cancel()
 	}()
 
-	var (
-		sum     = func(a, b int) int { return a + b }
-		product = func(a, b int) int { return a * b }
-	)
-
 	for {
+		fmt.Println()
+
 		select {
 		case <-ctx.Done():
 			fmt.Println("Finished.")
 			return
-		default:
-			// Start flow with dummy func
-			keypoint.WithInject(ctx, "start", func() {})()
-
-			a, b := rand.Int(), rand.Int()
-
-			result := keypoint.WithInject(ctx, "sum", sum)(a, b)
-			fmt.Printf("[%s] sum result: %d\n", time.Now().Format(time.TimeOnly), result)
-
-			result = keypoint.WithInject(ctx, "product", product)(a, b)
-			fmt.Printf("[%s] product result: %d\n", time.Now().Format(time.TimeOnly), result)
-
-			// Finish flow with dummy func
-			keypoint.WithInject(ctx, "finish", func() {})()
-
-			time.Sleep(3 * time.Second)
+		case <-time.Tick(3 * time.Second):
+			readFromFile(ctx)
 		}
+	}
+}
+
+func readFromFile(ctx context.Context) {
+	f, err := keypoint.WithInject(ctx, "open", os.Open)("important_file.txt")
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	b, err := io.ReadAll(f)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	log.Println(string(b))
+
+	if err := f.Close(); err != nil {
+		log.Println(err)
 	}
 }

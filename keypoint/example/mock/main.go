@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
-	"diploma/keypoint"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"diploma/keypoint"
 )
 
-// go build && GOFAIL_HTTP="127.0.0.1:1234" ./mock
+// go build && GOKEYPOINT_HTTP="127.0.0.1:1234" ./mock
 func main() {
 	sum := func(a, b int) (int, error) { return a + b, nil }
 

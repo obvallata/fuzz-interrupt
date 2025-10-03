@@ -5,5 +5,5 @@ import (
 )
 
 type SleepInjectionConfig struct {
-	Duration time.Duration `json:"duration"`
+	Duration time.Duration `json:"duration" yaml:"duration"`
 }
